@@ -22,6 +22,11 @@
             background: repeating-linear-gradient(45deg, #1e293b, #1e293b 10px, #0f172a 10px, #0f172a 20px);
         }
 
+        /* เมื่ออยู่ใน OBS Mode */
+        body.obs-mode {
+            background: transparent !important;
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -332,7 +337,7 @@
          JAVASCRIPT APPLICATION LOGIC
          ========================================== -->
     <script>
-        // 1. FIREBASE INITIALIZATION
+        // 1. FIREBASE INITIALIZATION & URL PARAMS SETUP
         const firebaseConfig = {
             apiKey: "AIzaSyCtpuArW_VhP4Q-UNlMJ-6M8lot19gi8k8",
             authDomain: "kimoo-dfbef.firebaseapp.com",
@@ -347,8 +352,12 @@
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
-        const db = firebase.database();
-        const stateRef = db.ref('esports_overlay/state');
+        const dbRef = firebase.database().ref("maprand_pro_state");
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("obs") === "1") {
+            document.body.classList.add("obs-mode");
+        }
 
         // 2. THEME PRESETS DEFINITIONS (6 Themes)
         const THEME_PRESETS = {
@@ -438,10 +447,9 @@
         // Track last known sponsor state string hash to isolate sponsor DOM rendering
         let lastSponsorHash = "";
 
-        // URL Parameters detection
-        const urlParams = new URLSearchParams(window.location.search);
         const viewMode = urlParams.get('view'); // 'obs' or 'obs-sponsor'
         const screenParam = parseInt(urlParams.get('screen')) || 1;
+        const isObsMode = urlParams.get("obs") === "1" || viewMode === 'obs' || viewMode === 'obs-sponsor';
 
         // Broadcast Channel for sub-millisecond local tabs sync
         const broadcastChannel = new BroadcastChannel('esports_overlay_channel');
@@ -459,8 +467,8 @@
                 }));
                 
                 // Firebase Isolated Sync
-                stateRef.child('screens').set(appState.screens);
-                stateRef.child('activeControlScreen').set(appState.activeControlScreen);
+                dbRef.child('screens').set(appState.screens);
+                dbRef.child('activeControlScreen').set(appState.activeControlScreen);
 
                 broadcastChannel.postMessage({ type: 'GAME_UPDATE', screens: appState.screens, activeControlScreen: appState.activeControlScreen });
             } catch (e) {
@@ -477,7 +485,7 @@
                 }));
 
                 // Firebase Isolated Sync
-                stateRef.child('sponsor').set({
+                dbRef.child('sponsor').set({
                     settings: appState.sponsorSettings,
                     list: appState.sponsors
                 });
@@ -490,7 +498,7 @@
 
         // Initialize Firebase Listener with Smart Isolated Protection
         function initFirebaseSync() {
-            stateRef.on('value', (snapshot) => {
+            dbRef.on('value', (snapshot) => {
                 const val = snapshot.val();
                 if (!val) return;
 
@@ -523,7 +531,7 @@
                 // Render Game updates ONLY
                 if (gameDataChanged) {
                     renderMapOverlayPreview();
-                    if (!viewMode) {
+                    if (!isObsMode) {
                         updateControlPanelFormSilently();
                     }
                     // Update sponsor frame border color ONLY without touching image or restarting timer!
@@ -533,7 +541,7 @@
                 // Render Sponsor updates ONLY if sponsor state actually changed
                 if (sponsorDataChanged) {
                     renderSponsorFrame();
-                    if (!viewMode) {
+                    if (!isObsMode) {
                         renderSponsorsListUI();
                     }
                     updateCarouselInterval();
@@ -553,12 +561,12 @@
                     appState.sponsorSettings.activeSponsorIndex = (appState.sponsorSettings.activeSponsorIndex + 1) % appState.sponsors.length;
                     
                     // Only Control Panel writes active sponsor index to Firebase to avoid loop conflict
-                    if (!viewMode) {
-                        stateRef.child('sponsor/settings/activeSponsorIndex').set(appState.sponsorSettings.activeSponsorIndex);
+                    if (!isObsMode) {
+                        dbRef.child('sponsor/settings/activeSponsorIndex').set(appState.sponsorSettings.activeSponsorIndex);
                     }
                     
                     renderSponsorFrame();
-                    if (!viewMode && document.getElementById('control-panel-view').style.display !== 'none') {
+                    if (!isObsMode && document.getElementById('control-panel-view').style.display !== 'none') {
                         renderSponsorsListUI();
                     }
                 }, interval);
@@ -569,7 +577,7 @@
         // OVERLAY HTML RENDERERS
         // ==========================================
 
-        // 1. Map/Game Overlay Renderer (100% Gamenum_2.html Skewed Design Match)
+        // 1. Map/Game Overlay Renderer
         function renderMapOverlayHTML(screenData) {
             const theme = THEME_PRESETS[screenData.theme] || THEME_PRESETS['orange'];
             const group = screenData.group || 'GROUP A';
@@ -735,7 +743,6 @@
             const screen = appState.screens[appState.activeControlScreen];
             if (!screen) return;
 
-            // Only update fields if active focus isn't currently inside them to prevent cursor jumping
             if (document.activeElement !== document.getElementById('group-input')) {
                 document.getElementById('group-input').value = screen.group || '';
             }
@@ -794,7 +801,7 @@
             }
         }
 
-        // Render Uploaded Sponsors List with Individual Logo Height Sliders (Up to 160px with Smooth Lag-Free Dragging)
+        // Render Uploaded Sponsors List with Individual Logo Height Sliders (Up to 160px with Lag-Free Dragging)
         function renderSponsorsListUI() {
             const container = document.getElementById('sponsors-list-container');
             if (!container) return;
@@ -850,12 +857,12 @@
         function updateObsLinksUI() {
             const baseUrl = window.location.origin + window.location.pathname;
             
-            document.getElementById('sponsor-url-input').value = `${baseUrl}?view=obs-sponsor`;
+            document.getElementById('sponsor-url-input').value = `${baseUrl}?view=obs-sponsor&obs=1`;
             
             for (let i = 1; i <= 5; i++) {
                 const input = document.getElementById(`map-url-${i}`);
                 if (input) {
-                    input.value = `${baseUrl}?view=obs&screen=${i}`;
+                    input.value = `${baseUrl}?view=obs&screen=${i}&obs=1`;
                 }
             }
         }
@@ -1071,13 +1078,13 @@
                 if (event.data.screens) appState.screens = event.data.screens;
                 if (event.data.activeControlScreen) appState.activeControlScreen = event.data.activeControlScreen;
                 renderMapOverlayPreview();
-                if (!viewMode) updateControlPanelFormSilently();
+                if (!isObsMode) updateControlPanelFormSilently();
                 updateSponsorFrameBorderColorOnly();
             } else if (event.data.type === 'SPONSOR_UPDATE') {
                 if (event.data.sponsorSettings) appState.sponsorSettings = event.data.sponsorSettings;
                 if (event.data.sponsors) appState.sponsors = event.data.sponsors;
                 renderSponsorFrame();
-                if (!viewMode) renderSponsorsListUI();
+                if (!isObsMode) renderSponsorsListUI();
                 updateCarouselInterval();
             }
 
@@ -1088,7 +1095,7 @@
         // OBS VIEW MODE RENDERER
         // ==========================================
         function renderObsViewIfNeeded() {
-            if (!viewMode) return;
+            if (!isObsMode) return;
 
             const obsContainer = document.getElementById('obs-render-container');
             if (!obsContainer) return;
@@ -1096,7 +1103,7 @@
             if (viewMode === 'obs-sponsor') {
                 // Render Only Sponsor Overlay
                 renderSponsorFrameInContainer(obsContainer);
-            } else if (viewMode === 'obs') {
+            } else {
                 // Render Map Overlay for target screen Param
                 const targetScreenData = appState.screens[screenParam] || appState.screens[1];
                 obsContainer.innerHTML = renderMapOverlayHTML(targetScreenData);
@@ -1109,7 +1116,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             initFirebaseSync();
 
-            if (viewMode) {
+            if (isObsMode) {
                 // OBS Only Mode
                 document.getElementById('control-panel-view').style.display = 'none';
                 document.getElementById('obs-only-view').classList.remove('hidden');
