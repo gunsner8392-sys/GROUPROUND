@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAPGR & SPONSOR</title>
+    <title>Esports Overlay Control & Display Suite</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/webp" href="PG/LOGO-S1.webp">
+    <!-- Google Fonts: Kanit & Orbitron -->
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Firebase JS SDK v8 -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -67,15 +69,17 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-black tracking-wide bg-gradient-to-r from-orange-400 via-amber-300 to-red-500 bg-clip-text text-transparent">
-                            MAPRG & SPONSOR
+                            ESPORTS OVERLAY CONTROL SUITE
                         </h1>
-                        <p class="text-xs text-slate-400">ระบบจัดการป้แข่งขัน Map/Game & สปอนเซอร์</p>
+                        <p class="text-xs text-slate-400">ระบบจัดการป้ายแข่งขัน Map/Game & กรอบสปอนเซอร์แบบเรียลไทม์ผ่าน Firebase Sync</p>
                     </div>
                 </div>
 
                 <!-- Status & Quick Info -->
                 <div class="flex items-center gap-3">
-                   
+                    <span id="firebase-status-badge" class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                        Firebase Realtime Connected
                     </span>
                 </div>
             </div>
@@ -96,7 +100,7 @@
                         </h2>
                         <!-- Target Screen Selector for Preview -->
                         <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
-                            <span class="text-slate-400 px-1 text-[10px]">หน้า</span>
+                            <span class="text-slate-400 px-1 text-[10px]">ดูหน้า:</span>
                             <button onclick="switchPreviewScreen(1)" id="prev-scr-1" class="px-2 py-0.5 rounded font-bold transition">S1</button>
                             <button onclick="switchPreviewScreen(2)" id="prev-scr-2" class="px-2 py-0.5 rounded font-bold transition">S2</button>
                             <button onclick="switchPreviewScreen(3)" id="prev-scr-3" class="px-2 py-0.5 rounded font-bold transition">S3</button>
@@ -143,7 +147,7 @@
             <!-- RIGHT COLUMN (7 Cols): Control Panel & OBS Links -->
             <section class="lg:col-span-7 flex flex-col gap-6">
                 
-                <!-- CONTROL PANEL SECTION -->
+                <!-- CONTROL PANEL SECTION (GAME & MAP) -->
                 <div class="bg-slate-900/90 backdrop-blur border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col gap-5">
                     
                     <!-- Section Title & Screen Tabs -->
@@ -168,7 +172,7 @@
                         <!-- Theme Selector -->
                         <div class="flex flex-col gap-1.5 md:col-span-2">
                             <label class="text-xs font-semibold text-slate-400">เลือกธีมสี Overlay (Theme Presets)</label>
-                            <select id="theme-select" onchange="handleControlChange()" class="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 font-medium">
+                            <select id="theme-select" onchange="handleGameControlChange()" class="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 font-medium">
                                 <option value="orange">🍊 Tactical Orange (#ff6d00)</option>
                                 <option value="darkblue">🔵 Electric Dark Blue (#4a2aff)</option>
                                 <option value="pink">🌸 Cyber Pink (#ff64db)</option>
@@ -181,7 +185,7 @@
                         <!-- Group Name Input -->
                         <div class="flex flex-col gap-1.5">
                             <label class="text-xs font-semibold text-slate-400">กลุ่มแข่งขัน (GROUP)</label>
-                            <input type="text" id="group-input" oninput="handleControlChange()" placeholder="เช่น GROUP A, GROUP B" class="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-500 font-obs font-bold uppercase" />
+                            <input type="text" id="group-input" oninput="handleGameControlChange()" placeholder="เช่น GROUP A, GROUP B" class="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-500 font-obs font-bold uppercase" />
                         </div>
 
                         <!-- Match Slider -->
@@ -192,7 +196,7 @@
                             </div>
                             <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 p-1.5 rounded-xl">
                                 <button onclick="adjustMatch(-1)" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold text-sm transition flex items-center justify-center">-</button>
-                                <input type="range" id="match-slider" min="1" max="20" step="1" oninput="handleControlChange()" class="w-full accent-orange-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg" />
+                                <input type="range" id="match-slider" min="1" max="20" step="1" oninput="handleGameControlChange()" class="w-full accent-orange-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg" />
                                 <button onclick="adjustMatch(1)" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-bold text-sm transition flex items-center justify-center">+</button>
                             </div>
                         </div>
@@ -212,7 +216,7 @@
                     </div>
                 </div>
 
-                <!-- SPONSOR MANAGEMENT SECTION -->
+                <!-- SPONSOR MANAGEMENT SECTION (ISOLATED) -->
                 <div class="bg-slate-900/90 backdrop-blur border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col gap-4">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                         <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
@@ -334,12 +338,10 @@
     </div>
 
     <!-- ==========================================
-         JAVASCRIPT APPLICATION LOGIC & FIREBASE
+         JAVASCRIPT APPLICATION LOGIC
          ========================================== -->
     <script>
-        // ------------------------------------------
-        // FIREBASE INITIALIZATION
-        // ------------------------------------------
+        // 1. FIREBASE INITIALIZATION
         const firebaseConfig = {
             apiKey: "AIzaSyCtpuArW_VhP4Q-UNlMJ-6M8lot19gi8k8",
             authDomain: "kimoo-dfbef.firebaseapp.com",
@@ -351,33 +353,13 @@
             measurementId: "G-DZEM9T87ZD"
         };
 
-        // Initialize Firebase Realtime Database
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.database();
         const stateRef = db.ref('esports_overlay/state');
 
-        // Monitor Firebase Connection State
-        const connectedRef = db.ref(".info/connected");
-        connectedRef.on("value", (snap) => {
-            const badge = document.getElementById("firebase-status-badge");
-            const dot = document.getElementById("firebase-ping-dot");
-            const text = document.getElementById("firebase-status-text");
-            if (!badge || !dot || !text) return;
-
-            if (snap.val() === true) {
-                badge.className = "inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-medium";
-                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-ping";
-                text.innerText = "Firebase Cloud Sync: Connected";
-            } else {
-                badge.className = "inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-medium";
-                dot.className = "w-2 h-2 rounded-full bg-amber-500";
-                text.innerText = "Firebase: Local Fallback Mode";
-            }
-        });
-
-        // ------------------------------------------
-        // APP THEMES & INITIAL STATE
-        // ------------------------------------------
+        // 2. THEME PRESETS DEFINITIONS (6 Themes)
         const THEME_PRESETS = {
             'orange': {
                 name: 'Tactical Orange',
@@ -462,90 +444,128 @@
             sponsors: [] // Array of { id, name, src, height }
         };
 
-        // BroadcastChannel for instant local multi-tab sync
-        const broadcastChannel = new BroadcastChannel('esports_overlay_channel');
+        // Track last known sponsor state string hash to isolate sponsor DOM rendering
+        let lastSponsorHash = "";
 
         // URL Parameters detection
         const urlParams = new URLSearchParams(window.location.search);
         const viewMode = urlParams.get('view'); // 'obs' or 'obs-sponsor'
         const screenParam = parseInt(urlParams.get('screen')) || 1;
 
-        // Load saved state from LocalStorage on initialization
-        function loadSavedState() {
-            try {
-                const saved = localStorage.getItem('esports_suite_state');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    appState = { ...appState, ...parsed };
-                }
-            } catch (e) {
-                console.error("Error loading state:", e);
-            }
-        }
+        // Broadcast Channel for sub-millisecond local tabs sync
+        const broadcastChannel = new BroadcastChannel('esports_overlay_channel');
 
-        // Debounced Firebase Write Helper for smooth dragging
-        let firebaseWriteTimeout = null;
-        function debouncedFirebaseSave() {
-            if (firebaseWriteTimeout) clearTimeout(firebaseWriteTimeout);
-            firebaseWriteTimeout = setTimeout(() => {
-                if (stateRef) {
-                    stateRef.set(appState).catch(err => console.error("Firebase write error:", err));
-                }
-            }, 120);
-        }
+        // ==========================================
+        // ISOLATED STATE SAVING TO FIREBASE & LOCALSTORAGE
+        // ==========================================
 
-        // Save State locally & Sync to Firebase Realtime Database
-        function saveAndBroadcastState(debounceRemote = false) {
+        // Save ONLY Game Data (Screens, ActiveScreen)
+        function saveGameDataOnly() {
             try {
-                // Local sync
-                localStorage.setItem('esports_suite_state', JSON.stringify(appState));
-                broadcastChannel.postMessage(appState);
+                localStorage.setItem('esports_suite_game_state', JSON.stringify({
+                    screens: appState.screens,
+                    activeControlScreen: appState.activeControlScreen
+                }));
                 
-                // Cloud Sync (Firebase)
-                if (debounceRemote) {
-                    debouncedFirebaseSave();
-                } else if (stateRef) {
-                    stateRef.set(appState).catch(err => console.error("Firebase save error:", err));
-                }
+                // Firebase Isolated Sync
+                stateRef.child('screens').set(appState.screens);
+                stateRef.child('activeControlScreen').set(appState.activeControlScreen);
+
+                broadcastChannel.postMessage({ type: 'GAME_UPDATE', screens: appState.screens, activeControlScreen: appState.activeControlScreen });
             } catch (e) {
-                console.error("Error saving state:", e);
+                console.error("Error saving game data:", e);
             }
         }
 
-        // Listen for Realtime Firebase State Updates over the internet
-        stateRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                appState = { ...appState, ...data };
-                // Keep LocalStorage in sync
-                try {
-                    localStorage.setItem('esports_suite_state', JSON.stringify(appState));
-                } catch(e){}
+        // Save ONLY Sponsor Data (Settings, Sponsors List)
+        function saveSponsorDataOnly() {
+            try {
+                localStorage.setItem('esports_suite_sponsor_state', JSON.stringify({
+                    sponsorSettings: appState.sponsorSettings,
+                    sponsors: appState.sponsors
+                }));
 
-                // Refresh UI Views instantly
-                renderObsViewIfNeeded();
-                if (!viewMode) {
-                    renderMapOverlayPreview();
-                    renderSponsorFrame();
-                    renderSponsorsListUI();
-                    updateControlPanelForm();
-                }
+                // Firebase Isolated Sync
+                stateRef.child('sponsor').set({
+                    settings: appState.sponsorSettings,
+                    list: appState.sponsors
+                });
+
+                broadcastChannel.postMessage({ type: 'SPONSOR_UPDATE', sponsorSettings: appState.sponsorSettings, sponsors: appState.sponsors });
+            } catch (e) {
+                console.error("Error saving sponsor data:", e);
             }
-        }, (error) => {
-            console.error("Firebase subscription error:", error);
-        });
+        }
+
+        // Initialize Firebase Listener with Smart Isolated Protection
+        function initFirebaseSync() {
+            stateRef.on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (!val) return;
+
+                let gameDataChanged = false;
+
+                if (val.screens) {
+                    appState.screens = val.screens;
+                    gameDataChanged = true;
+                }
+                if (val.activeControlScreen) {
+                    appState.activeControlScreen = val.activeControlScreen;
+                    gameDataChanged = true;
+                }
+
+                // Check Sponsor State Change with Hash Comparison
+                let sponsorDataChanged = false;
+                const incomingSponsorData = {
+                    sponsorSettings: val.sponsor?.settings || val.sponsorSettings || appState.sponsorSettings,
+                    sponsors: val.sponsor?.list || val.sponsors || appState.sponsors
+                };
+                const newHash = JSON.stringify(incomingSponsorData);
+
+                if (newHash !== lastSponsorHash) {
+                    lastSponsorHash = newHash;
+                    appState.sponsorSettings = incomingSponsorData.sponsorSettings;
+                    appState.sponsors = incomingSponsorData.sponsors;
+                    sponsorDataChanged = true;
+                }
+
+                // Render Game updates ONLY
+                if (gameDataChanged) {
+                    renderMapOverlayPreview();
+                    if (!viewMode) {
+                        updateControlPanelFormSilently();
+                    }
+                    // Update sponsor frame border color ONLY without touching image or restarting timer!
+                    updateSponsorFrameBorderColorOnly();
+                }
+
+                // Render Sponsor updates ONLY if sponsor state actually changed
+                if (sponsorDataChanged) {
+                    renderSponsorFrame();
+                    if (!viewMode) {
+                        renderSponsorsListUI();
+                    }
+                    updateCarouselInterval();
+                }
+
+                renderObsViewIfNeeded();
+            });
+        }
 
         // Initialize Carousel Interval
         let carouselTimer = null;
         function updateCarouselInterval() {
             if (carouselTimer) clearInterval(carouselTimer);
             const interval = parseInt(appState.sponsorSettings.timerInterval) || 0;
-            if (interval > 0 && appState.sponsors && appState.sponsors.length > 1) {
+            if (interval > 0 && appState.sponsors.length > 1) {
                 carouselTimer = setInterval(() => {
                     appState.sponsorSettings.activeSponsorIndex = (appState.sponsorSettings.activeSponsorIndex + 1) % appState.sponsors.length;
-                    saveAndBroadcastState();
+                    
+                    // Save ONLY active sponsor index change to Firebase
+                    stateRef.child('sponsor/settings/activeSponsorIndex').set(appState.sponsorSettings.activeSponsorIndex);
+                    
                     renderSponsorFrame();
-                    if (document.getElementById('control-panel-view').style.display !== 'none') {
+                    if (!viewMode && document.getElementById('control-panel-view').style.display !== 'none') {
                         renderSponsorsListUI();
                     }
                 }, interval);
@@ -585,7 +605,18 @@
             `;
         }
 
-        // 2. Global Sponsor Frame Helper with Smooth Fade Transition (Strict 320x150)
+        // Update Sponsor Frame Border Color ONLY without touching inner Image DOM or active index
+        function updateSponsorFrameBorderColorOnly() {
+            const currentScreen = appState.screens[appState.activeControlScreen] || appState.screens[1];
+            const activeThemeKey = currentScreen.theme || 'orange';
+            const theme = THEME_PRESETS[activeThemeKey] || THEME_PRESETS['orange'];
+            
+            document.querySelectorAll('.sponsor-frame-box').forEach(box => {
+                box.style.borderColor = theme.frameBorder;
+            });
+        }
+
+        // 2. Global Sponsor Frame Helper with Smooth Fade Transition
         function renderSponsorFrameInContainer(container) {
             if (!container) return;
 
@@ -617,7 +648,7 @@
             if (!activeSponsor) {
                 container.dataset.lastSponsorSrc = '';
                 container.innerHTML = `
-                    <div style="${frameStyle}" class="flex items-center justify-center p-4 text-center select-none shadow-2xl transition-all duration-300">
+                    <div style="${frameStyle}" class="sponsor-frame-box flex items-center justify-center p-4 text-center select-none shadow-2xl transition-all duration-300">
                         <div class="text-slate-400 font-semibold text-sm flex flex-col items-center gap-1">
                             <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             <span>ยังไม่ได้ใส่รูปสปอนเซอร์</span>
@@ -688,7 +719,7 @@
             const indicator = document.getElementById('sponsor-carousel-indicator');
             if (indicator) {
                 const interval = parseInt(appState.sponsorSettings.timerInterval) || 0;
-                if (interval > 0 && appState.sponsors && appState.sponsors.length > 1) {
+                if (interval > 0 && appState.sponsors.length > 1) {
                     indicator.innerText = `Auto Carousel (${interval/1000}s)`;
                     indicator.className = 'text-[11px] text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full';
                 } else {
@@ -698,13 +729,20 @@
             }
         }
 
-        function updateControlPanelForm() {
+        function updateControlPanelFormSilently() {
             const screen = appState.screens[appState.activeControlScreen];
             if (!screen) return;
 
-            document.getElementById('theme-select').value = screen.theme || 'orange';
-            document.getElementById('group-input').value = screen.group || '';
-            document.getElementById('match-slider').value = screen.match || 1;
+            // Only update fields if active focus isn't currently inside them to prevent cursor jumping
+            if (document.activeElement !== document.getElementById('group-input')) {
+                document.getElementById('group-input').value = screen.group || '';
+            }
+            if (document.activeElement !== document.getElementById('theme-select')) {
+                document.getElementById('theme-select').value = screen.theme || 'orange';
+            }
+            if (document.activeElement !== document.getElementById('match-slider')) {
+                document.getElementById('match-slider').value = screen.match || 1;
+            }
             document.getElementById('match-val-display').innerText = 'MATCH ' + (screen.match || 1);
 
             // Update Map Buttons Active state
@@ -732,9 +770,13 @@
             }
 
             // Update Sponsor settings fields
-            document.getElementById('sponsor-border-width').value = appState.sponsorSettings.borderWidth || 4;
+            if (document.activeElement !== document.getElementById('sponsor-border-width')) {
+                document.getElementById('sponsor-border-width').value = appState.sponsorSettings.borderWidth || 4;
+            }
             document.getElementById('sponsor-border-display').innerText = (appState.sponsorSettings.borderWidth || 4) + 'px';
-            document.getElementById('sponsor-timer-select').value = appState.sponsorSettings.timerInterval || 0;
+            if (document.activeElement !== document.getElementById('sponsor-timer-select')) {
+                document.getElementById('sponsor-timer-select').value = appState.sponsorSettings.timerInterval || 0;
+            }
         }
 
         function updatePreviewScreenTabsUI() {
@@ -755,9 +797,7 @@
             const container = document.getElementById('sponsors-list-container');
             if (!container) return;
 
-            const sponsors = appState.sponsors || [];
-
-            if (sponsors.length === 0) {
+            if (appState.sponsors.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-4 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
                         ยังไม่มีรูปสปอนเซอร์ในรายการ สามารถอัปโหลดรูปได้ที่กล่องด้านบน
@@ -767,7 +807,7 @@
             }
 
             let html = '';
-            sponsors.forEach((sp, idx) => {
+            appState.sponsors.forEach((sp, idx) => {
                 const isActive = (idx === appState.sponsorSettings.activeSponsorIndex);
                 html += `
                     <div class="bg-slate-950 p-2.5 rounded-xl border ${isActive ? 'border-amber-500 shadow-md shadow-amber-500/10' : 'border-slate-800'} flex flex-col sm:flex-row items-center justify-between gap-3 transition">
@@ -819,17 +859,17 @@
         }
 
         // ==========================================
-        // USER EVENT HANDLERS
+        // USER EVENT HANDLERS (GAME SECTION)
         // ==========================================
 
         function setActiveControlScreen(scrNum) {
             appState.activeControlScreen = scrNum;
             appState.activePreviewScreen = scrNum; // Auto sync preview screen
-            updateControlPanelForm();
+            updateControlPanelFormSilently();
             updatePreviewScreenTabsUI();
             renderMapOverlayPreview();
-            renderSponsorFrame();
-            saveAndBroadcastState();
+            updateSponsorFrameBorderColorOnly(); // ONLY update border color of sponsor frame
+            saveGameDataOnly();
         }
 
         function switchPreviewScreen(scrNum) {
@@ -838,7 +878,7 @@
             renderMapOverlayPreview();
         }
 
-        function handleControlChange() {
+        function handleGameControlChange() {
             const screen = appState.screens[appState.activeControlScreen];
             if (!screen) return;
 
@@ -849,8 +889,8 @@
             document.getElementById('match-val-display').innerText = 'MATCH ' + screen.match;
 
             renderMapOverlayPreview();
-            renderSponsorFrame();
-            saveAndBroadcastState();
+            updateSponsorFrameBorderColorOnly(); // Update border color ONLY, zero sponsor reset!
+            saveGameDataOnly();
         }
 
         function adjustMatch(delta) {
@@ -859,7 +899,7 @@
             if (val < 1) val = 1;
             if (val > 20) val = 20;
             slider.value = val;
-            handleControlChange();
+            handleGameControlChange();
         }
 
         function selectMap(mapName) {
@@ -867,10 +907,14 @@
             if (!screen) return;
 
             screen.map = mapName;
-            updateControlPanelForm();
+            updateControlPanelFormSilently();
             renderMapOverlayPreview();
-            saveAndBroadcastState();
+            saveGameDataOnly();
         }
+
+        // ==========================================
+        // USER EVENT HANDLERS (SPONSOR SECTION)
+        // ==========================================
 
         function handleSponsorSettingsChange() {
             const width = parseInt(document.getElementById('sponsor-border-width').value) || 4;
@@ -883,14 +927,12 @@
 
             updateCarouselInterval();
             renderSponsorFrame();
-            saveAndBroadcastState();
+            saveSponsorDataOnly();
         }
 
         function handleFileUpload(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
-
-            if (!appState.sponsors) appState.sponsors = [];
 
             Array.from(files).forEach(file => {
                 if (!file.type.startsWith('image/')) return;
@@ -905,12 +947,11 @@
                     };
                     appState.sponsors.push(sponsorItem);
                     
-                    // Auto select newly added sponsor if it's the first one
                     if (appState.sponsors.length === 1) {
                         appState.sponsorSettings.activeSponsorIndex = 0;
                     }
 
-                    saveAndBroadcastState();
+                    saveSponsorDataOnly();
                     renderSponsorsListUI();
                     renderSponsorFrame();
                     updateCarouselInterval();
@@ -919,24 +960,23 @@
                 reader.readAsDataURL(file);
             });
 
-            // Reset input
             event.target.value = '';
         }
 
-        // Optimized Smooth Logo Height Slider Update (No Stutter, Direct DOM & State Update)
+        // Smooth Logo Height Slider Update (Lag-Free Dragging)
+        let sponsorHeightDebounce = null;
         function updateSponsorHeight(id, newHeight, inputEl) {
-            if (!appState.sponsors) return;
             const sp = appState.sponsors.find(s => s.id === id);
             if (!sp) return;
 
             sp.height = parseInt(newHeight) || 70;
 
-            // 1. Instantly update numeric label beside slider
+            // 1. Instantly update numeric label beside the slider
             if (inputEl && inputEl.nextElementSibling) {
                 inputEl.nextElementSibling.innerText = sp.height + 'px';
             }
 
-            // 2. Direct DOM style update for active sponsor preview/OBS images
+            // 2. Direct DOM style update for active sponsor preview/OBS images without re-rendering full list
             const activeIdx = appState.sponsorSettings.activeSponsorIndex || 0;
             if (appState.sponsors[activeIdx] && appState.sponsors[activeIdx].id === id) {
                 document.querySelectorAll('.sponsor-frame-img').forEach(img => {
@@ -944,25 +984,27 @@
                 });
             }
 
-            // 3. Save state & broadcast changes (debounced for Firebase)
-            saveAndBroadcastState(true);
+            // 3. Debounced save to Firebase to keep UI silky smooth
+            if (sponsorHeightDebounce) clearTimeout(sponsorHeightDebounce);
+            sponsorHeightDebounce = setTimeout(() => {
+                saveSponsorDataOnly();
+            }, 100);
         }
 
         function setActiveSponsor(index) {
             appState.sponsorSettings.activeSponsorIndex = index;
-            saveAndBroadcastState();
+            saveSponsorDataOnly();
             renderSponsorFrame();
             renderSponsorsListUI();
             showToast('เปลี่ยนสปอนเซอร์แสดงผลแล้ว');
         }
 
         function deleteSponsor(id) {
-            if (!appState.sponsors) return;
             appState.sponsors = appState.sponsors.filter(s => s.id !== id);
             if (appState.sponsorSettings.activeSponsorIndex >= appState.sponsors.length) {
                 appState.sponsorSettings.activeSponsorIndex = Math.max(0, appState.sponsors.length - 1);
             }
-            saveAndBroadcastState();
+            saveSponsorDataOnly();
             renderSponsorsListUI();
             renderSponsorFrame();
             updateCarouselInterval();
@@ -1019,35 +1061,26 @@
             }, false);
         }
 
-        // Listen for BroadcastChannel Realtime Updates (Local multi-tab sync)
+        // BroadcastChannel Listener
         broadcastChannel.onmessage = (event) => {
-            if (event.data) {
-                appState = event.data;
-                renderObsViewIfNeeded();
-                if (!viewMode) {
-                    renderMapOverlayPreview();
-                    renderSponsorFrame();
-                    renderSponsorsListUI();
-                    updateControlPanelForm();
-                }
+            if (!event.data) return;
+            
+            if (event.data.type === 'GAME_UPDATE') {
+                if (event.data.screens) appState.screens = event.data.screens;
+                if (event.data.activeControlScreen) appState.activeControlScreen = event.data.activeControlScreen;
+                renderMapOverlayPreview();
+                if (!viewMode) updateControlPanelFormSilently();
+                updateSponsorFrameBorderColorOnly();
+            } else if (event.data.type === 'SPONSOR_UPDATE') {
+                if (event.data.sponsorSettings) appState.sponsorSettings = event.data.sponsorSettings;
+                if (event.data.sponsors) appState.sponsors = event.data.sponsors;
+                renderSponsorFrame();
+                if (!viewMode) renderSponsorsListUI();
+                updateCarouselInterval();
             }
-        };
 
-        // Listen for Storage Events (Localstorage Fallback Sync)
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'esports_suite_state' && e.newValue) {
-                try {
-                    appState = JSON.parse(e.newValue);
-                    renderObsViewIfNeeded();
-                    if (!viewMode) {
-                        renderMapOverlayPreview();
-                        renderSponsorFrame();
-                        renderSponsorsListUI();
-                        updateControlPanelForm();
-                    }
-                } catch (err) {}
-            }
-        });
+            renderObsViewIfNeeded();
+        };
 
         // ==========================================
         // OBS VIEW MODE RENDERER
@@ -1072,7 +1105,7 @@
         // INITIALIZATION ON PAGE LOAD
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
-            loadSavedState();
+            initFirebaseSync();
 
             if (viewMode) {
                 // OBS Only Mode
@@ -1085,7 +1118,7 @@
                 updateCarouselInterval();
             } else {
                 // Main Control Panel Mode
-                updateControlPanelForm();
+                updateControlPanelFormSilently();
                 updatePreviewScreenTabsUI();
                 renderMapOverlayPreview();
                 renderSponsorFrame();
