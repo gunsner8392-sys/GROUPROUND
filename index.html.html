@@ -493,14 +493,21 @@
                     screens: appState.screens,
                     activeControlScreen: appState.activeControlScreen
                 }));
-                
-                // Firebase Isolated Sync
+            } catch (e) {
+                console.warn("LocalStorage game save warning:", e);
+            }
+
+            try {
                 dbRef.child('screens').set(appState.screens);
                 dbRef.child('activeControlScreen').set(appState.activeControlScreen);
+            } catch (e) {
+                console.error("Firebase game save error:", e);
+            }
 
+            try {
                 broadcastChannel.postMessage({ type: 'GAME_UPDATE', screens: appState.screens, activeControlScreen: appState.activeControlScreen });
             } catch (e) {
-                console.error("Error saving game data:", e);
+                console.error("Broadcast game error:", e);
             }
         }
 
@@ -511,16 +518,23 @@
                     sponsorSettings: appState.sponsorSettings,
                     sponsors: appState.sponsors
                 }));
+            } catch (e) {
+                console.warn("LocalStorage sponsor save warning:", e);
+            }
 
-                // Firebase Isolated Sync
+            try {
                 dbRef.child('sponsor').set({
                     settings: appState.sponsorSettings,
                     list: appState.sponsors
                 });
+            } catch (e) {
+                console.error("Firebase sponsor save error:", e);
+            }
 
+            try {
                 broadcastChannel.postMessage({ type: 'SPONSOR_UPDATE', sponsorSettings: appState.sponsorSettings, sponsors: appState.sponsors });
             } catch (e) {
-                console.error("Error saving sponsor data:", e);
+                console.error("Broadcast sponsor error:", e);
             }
         }
 
@@ -546,21 +560,21 @@
                 const rawSponsors = val.sponsor?.list || val.sponsors;
                 const incomingSponsorSettings = val.sponsor?.settings || val.sponsorSettings || appState.sponsorSettings;
                 
-                const incomingSponsors = (rawSponsors !== undefined && rawSponsors !== null) 
-                    ? sanitizeSponsorsList(rawSponsors) 
-                    : appState.sponsors;
+                if (rawSponsors !== undefined && rawSponsors !== null) {
+                    const incomingSponsors = sanitizeSponsorsList(rawSponsors);
+                    
+                    const incomingSponsorData = {
+                        sponsorSettings: incomingSponsorSettings,
+                        sponsors: incomingSponsors
+                    };
+                    const newHash = JSON.stringify(incomingSponsorData);
 
-                const incomingSponsorData = {
-                    sponsorSettings: incomingSponsorSettings,
-                    sponsors: incomingSponsors
-                };
-                const newHash = JSON.stringify(incomingSponsorData);
-
-                if (newHash !== lastSponsorHash) {
-                    lastSponsorHash = newHash;
-                    appState.sponsorSettings = incomingSponsorData.sponsorSettings;
-                    appState.sponsors = incomingSponsorData.sponsors;
-                    sponsorDataChanged = true;
+                    if (newHash !== lastSponsorHash) {
+                        lastSponsorHash = newHash;
+                        appState.sponsorSettings = incomingSponsorData.sponsorSettings;
+                        appState.sponsors = incomingSponsors;
+                        sponsorDataChanged = true;
+                    }
                 }
 
                 // Render Game updates ONLY
@@ -594,7 +608,6 @@
                 carouselTimer = setInterval(() => {
                     appState.sponsorSettings.activeSponsorIndex = (appState.sponsorSettings.activeSponsorIndex + 1) % appState.sponsors.length;
                     
-                    // Only Control Panel writes active sponsor index to Firebase to avoid loop conflict
                     if (!isObsMode) {
                         dbRef.child('sponsor/settings/activeSponsorIndex').set(appState.sponsorSettings.activeSponsorIndex);
                     }
@@ -698,40 +711,32 @@
             const existingImg = container.querySelector('.sponsor-frame-img');
 
             if (frameBox && existingImg) {
-                // Update outer border styling smoothly
                 frameBox.style.borderWidth = borderWidth + 'px';
                 frameBox.style.borderColor = theme.frameBorder;
 
-                // Check if sponsor image source has changed (Real-Time Motion Transition)
                 if (container.dataset.lastSponsorSrc !== activeSponsor.src) {
                     container.dataset.lastSponsorSrc = activeSponsor.src;
                     
-                    // Step 1: Slide Up & Fade Out
                     existingImg.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
                     existingImg.style.transform = 'translateY(-12px) scale(0.92)';
                     existingImg.style.opacity = '0';
 
-                    // Step 2: Swap Source at zero opacity and Slide In from bottom
                     setTimeout(() => {
                         existingImg.src = activeSponsor.src;
                         existingImg.style.height = imgHeight + 'px';
                         existingImg.style.transform = 'translateY(12px) scale(0.92)';
 
-                        // Force browser reflow to trigger transition smoothly
                         void existingImg.offsetWidth;
 
-                        // Step 3: Slide & Fade In to natural center position
                         existingImg.style.transform = 'translateY(0) scale(1)';
                         existingImg.style.opacity = '1';
                     }, 300);
                 } else {
-                    // Same image, update height directly without full animation restart
                     existingImg.style.height = imgHeight + 'px';
                     existingImg.style.opacity = '1';
                     existingImg.style.transform = 'translateY(0) scale(1)';
                 }
             } else {
-                // Initial build of Sponsor Frame DOM
                 container.dataset.lastSponsorSrc = activeSponsor.src;
                 container.innerHTML = `
                     <div style="${frameStyle}" class="sponsor-frame-box flex items-center justify-center p-3 relative overflow-hidden select-none shadow-2xl transition-all duration-300">
@@ -753,13 +758,9 @@
         }
 
         function renderSponsorFrame() {
-            // Render in Preview Panel
             renderSponsorFrameInContainer(document.getElementById('sponsor-preview-frame'));
-            
-            // Render in OBS view container if active
             renderSponsorFrameInContainer(document.getElementById('obs-render-container'));
 
-            // Update Indicator Badge
             const indicator = document.getElementById('sponsor-carousel-indicator');
             if (indicator) {
                 const interval = parseInt(appState.sponsorSettings.timerInterval) || 0;
@@ -788,7 +789,6 @@
             }
             document.getElementById('match-val-display').innerText = 'MATCH ' + (screen.match || 1);
 
-            // Update Map Buttons Active state
             MAP_NAMES.forEach(mapName => {
                 const btn = document.getElementById(`map-btn-${mapName}`);
                 if (btn) {
@@ -800,7 +800,6 @@
                 }
             });
 
-            // Update Screen Control Tabs UI
             for (let i = 1; i <= 5; i++) {
                 const ctrlBtn = document.getElementById(`ctrl-scr-${i}`);
                 if (ctrlBtn) {
@@ -812,7 +811,6 @@
                 }
             }
 
-            // Update Sponsor settings fields
             if (document.activeElement !== document.getElementById('sponsor-border-width')) {
                 document.getElementById('sponsor-border-width').value = appState.sponsorSettings.borderWidth || 4;
             }
@@ -835,7 +833,6 @@
             }
         }
 
-        // Render Uploaded Sponsors List with Individual Logo Height Sliders
         function renderSponsorsListUI() {
             const container = document.getElementById('sponsors-list-container');
             if (!container) return;
@@ -887,7 +884,6 @@
             container.innerHTML = html;
         }
 
-        // Update OBS Links Inputs
         function updateObsLinksUI() {
             const baseUrl = window.location.origin + window.location.pathname;
             
@@ -956,7 +952,7 @@
         }
 
         // ==========================================
-        // USER EVENT HANDLERS (SPONSOR SECTION)
+        // USER EVENT HANDLERS (SPONSOR SECTION WITH PROMISE.ALL BATCH PROCESS)
         // ==========================================
 
         function handleSponsorSettingsChange() {
@@ -973,35 +969,73 @@
             saveSponsorDataOnly();
         }
 
-        function handleFileUpload(event) {
+        async function handleFileUpload(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
 
-            Array.from(files).forEach(file => {
-                if (!file.type.startsWith('image/')) return;
+            const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
+            if (fileList.length === 0) return;
 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const sponsorItem = {
-                        id: 'sp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                        name: file.name,
-                        src: e.target.result,
-                        height: 70
-                    };
-                    appState.sponsors.push(sponsorItem);
-                    
-                    if (appState.sponsors.length === 1) {
-                        appState.sponsorSettings.activeSponsorIndex = 0;
-                    }
+            showToast('กำลังประมวลผลรูปภาพ...');
 
-                    saveSponsorDataOnly();
-                    renderSponsorsListUI();
-                    renderSponsorFrame();
-                    updateCarouselInterval();
-                    showToast('อัปโหลดสปอนเซอร์เรียบร้อยแล้ว');
-                };
-                reader.readAsDataURL(file);
-            });
+            try {
+                // ประมวลผลย่อขนาดรูปภาพพร้อมกันทั้งหมดด้วย Promise.all ป้องกัน Race Condition
+                const newSponsors = await Promise.all(fileList.map((file, index) => {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = new Image();
+                            img.onload = function() {
+                                const canvas = document.createElement('canvas');
+                                let width = img.width;
+                                let height = img.height;
+                                const maxDim = 500;
+
+                                if (width > maxDim || height > maxDim) {
+                                    if (width > height) {
+                                        height = Math.round((height * maxDim) / width);
+                                        width = maxDim;
+                                    } else {
+                                        width = Math.round((width * maxDim) / height);
+                                        height = maxDim;
+                                    }
+                                }
+
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0, width, height);
+
+                                const optimizedDataUrl = canvas.toDataURL('image/png');
+
+                                resolve({
+                                    id: 'sp_' + Date.now() + '_' + index + '_' + Math.random().toString(36).substr(2, 5),
+                                    name: file.name,
+                                    src: optimizedDataUrl,
+                                    height: 70
+                                });
+                            };
+                            img.src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }));
+
+                appState.sponsors.push(...newSponsors);
+
+                if (appState.sponsors.length === newSponsors.length) {
+                    appState.sponsorSettings.activeSponsorIndex = 0;
+                }
+
+                saveSponsorDataOnly();
+                renderSponsorsListUI();
+                renderSponsorFrame();
+                updateCarouselInterval();
+                showToast(`อัปโหลดสปอนเซอร์ ${newSponsors.length} รูปเรียบร้อยแล้ว`);
+            } catch (err) {
+                console.error("Upload error:", err);
+                showToast("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ");
+            }
 
             event.target.value = '';
         }
@@ -1143,7 +1177,7 @@
         // INITIALIZATION ON PAGE LOAD
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
-            loadLocalStateCache(); // โหลดจากเครื่องก่อน เพื่อไม่ให้รูปหายหากยังเชื่อมต่อ Firebase ไม่เสร็จ
+            loadLocalStateCache();
             initFirebaseSync();
 
             if (isObsMode) {
