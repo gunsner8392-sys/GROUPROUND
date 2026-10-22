@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Esports Overlay Control & Display Suite</title>
+    <title>MAPGR & SPONSOR</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Kanit & Orbitron -->
+    <link rel="icon" type="image/webp" href="PG/LOGO-S1.webp">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
     
     <!-- Firebase JS SDK v8 -->
@@ -69,18 +69,11 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-black tracking-wide bg-gradient-to-r from-orange-400 via-amber-300 to-red-500 bg-clip-text text-transparent">
-                            ESPORTS OVERLAY CONTROL SUITE
+                            MAPGR & SPONSOR
                         </h1>
-                        <p class="text-xs text-slate-400">ระบบจัดการป้ายแข่งขัน Map/Game & กรอบสปอนเซอร์แบบเรียลไทม์ผ่าน Firebase Sync</p>
+                        <p class="text-xs text-slate-400">ระบบจัดการแข่งขัน Map/Game & SPONSOR</p>
                     </div>
                 </div>
-
-                <!-- Status & Quick Info -->
-                <div class="flex items-center gap-3">
-                    <span id="firebase-status-badge" class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-medium">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                        Firebase Realtime Connected
-                    </span>
                 </div>
             </div>
         </header>
@@ -100,7 +93,7 @@
                         </h2>
                         <!-- Target Screen Selector for Preview -->
                         <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
-                            <span class="text-slate-400 px-1 text-[10px]">ดูหน้า:</span>
+                            <span class="text-slate-400 px-1 text-[10px]">หน้า</span>
                             <button onclick="switchPreviewScreen(1)" id="prev-scr-1" class="px-2 py-0.5 rounded font-bold transition">S1</button>
                             <button onclick="switchPreviewScreen(2)" id="prev-scr-2" class="px-2 py-0.5 rounded font-bold transition">S2</button>
                             <button onclick="switchPreviewScreen(3)" id="prev-scr-3" class="px-2 py-0.5 rounded font-bold transition">S3</button>
@@ -173,12 +166,12 @@
                         <div class="flex flex-col gap-1.5 md:col-span-2">
                             <label class="text-xs font-semibold text-slate-400">เลือกธีมสี Overlay (Theme Presets)</label>
                             <select id="theme-select" onchange="handleGameControlChange()" class="bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 font-medium">
-                                <option value="orange">🍊 Tactical Orange (#ff6d00)</option>
-                                <option value="darkblue">🔵 Electric Dark Blue (#4a2aff)</option>
-                                <option value="pink">🌸 Cyber Pink (#ff64db)</option>
-                                <option value="darkgreen">🌿 Toxic Dark Green (#008000)</option>
-                                <option value="navy-blue">⚓ Royal Navy Blue (#1a237e)</option>
-                                <option value="Red">🔥 Red Inferno (#FF0000)</option>
+                                <option value="orange">🍊 Orange </option>
+                                <option value="darkblue">🔵 Dark Blue </option>
+                                <option value="pink">🌸 Pink </option>
+                                <option value="darkgreen">🌿 Dark Green</option>
+                                <option value="navy-blue">⚓ Navy Blue </option>
+                                <option value="Red">🔥 Red </option>
                             </select>
                         </div>
 
