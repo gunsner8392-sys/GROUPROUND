@@ -252,7 +252,7 @@
                         <input type="file" id="sponsor-file-input" multiple accept="image/*" onchange="handleFileUpload(event)" class="hidden" />
                     </div>
 
-                    <!-- Uploaded Sponsors List with Individual Logo Height Sliders (Up to 160px with Smooth Lag-Free Dragging) -->
+                    <!-- Uploaded Sponsors List with Individual Logo Height Sliders (Up to 160px with Lag-Free Dragging) -->
                     <div id="sponsors-list-container" class="flex flex-col gap-2.5 max-h-60 overflow-y-auto pr-1">
                         <!-- Sponsor Items rendered here -->
                     </div>
@@ -359,6 +359,18 @@
             document.body.classList.add("obs-mode");
         }
 
+        // Helper: แปลงโครงสร้าง Array/Object ให้เป็น Array ที่ปลอดภัยเสมอ
+        function sanitizeSponsorsList(rawList) {
+            if (!rawList) return [];
+            if (Array.isArray(rawList)) {
+                return rawList.filter(item => item && typeof item === 'object');
+            }
+            if (typeof rawList === 'object') {
+                return Object.values(rawList).filter(item => item && typeof item === 'object');
+            }
+            return [];
+        }
+
         // 2. THEME PRESETS DEFINITIONS (6 Themes)
         const THEME_PRESETS = {
             'orange': {
@@ -454,9 +466,25 @@
         // Broadcast Channel for sub-millisecond local tabs sync
         const broadcastChannel = new BroadcastChannel('esports_overlay_channel');
 
-        // ==========================================
-        // ISOLATED STATE SAVING TO FIREBASE & LOCALSTORAGE
-        // ==========================================
+        // โหลด Cache จาก LocalStorage ก่อน Firebase Sync
+        function loadLocalStateCache() {
+            try {
+                const cachedGame = localStorage.getItem('esports_suite_game_state');
+                if (cachedGame) {
+                    const parsed = JSON.parse(cachedGame);
+                    if (parsed.screens) appState.screens = parsed.screens;
+                    if (parsed.activeControlScreen) appState.activeControlScreen = parsed.activeControlScreen;
+                }
+                const cachedSponsor = localStorage.getItem('esports_suite_sponsor_state');
+                if (cachedSponsor) {
+                    const parsed = JSON.parse(cachedSponsor);
+                    if (parsed.sponsorSettings) appState.sponsorSettings = parsed.sponsorSettings;
+                    if (parsed.sponsors) appState.sponsors = sanitizeSponsorsList(parsed.sponsors);
+                }
+            } catch (e) {
+                console.error("Error loading local storage cache:", e);
+            }
+        }
 
         // Save ONLY Game Data (Screens, ActiveScreen)
         function saveGameDataOnly() {
@@ -513,11 +541,18 @@
                     gameDataChanged = true;
                 }
 
-                // Check Sponsor State Change with Hash Comparison
+                // Check Sponsor State Change with Safe Sanitization
                 let sponsorDataChanged = false;
+                const rawSponsors = val.sponsor?.list || val.sponsors;
+                const incomingSponsorSettings = val.sponsor?.settings || val.sponsorSettings || appState.sponsorSettings;
+                
+                const incomingSponsors = (rawSponsors !== undefined && rawSponsors !== null) 
+                    ? sanitizeSponsorsList(rawSponsors) 
+                    : appState.sponsors;
+
                 const incomingSponsorData = {
-                    sponsorSettings: val.sponsor?.settings || val.sponsorSettings || appState.sponsorSettings,
-                    sponsors: val.sponsor?.list || val.sponsors || appState.sponsors
+                    sponsorSettings: incomingSponsorSettings,
+                    sponsors: incomingSponsors
                 };
                 const newHash = JSON.stringify(incomingSponsorData);
 
@@ -534,7 +569,6 @@
                     if (!isObsMode) {
                         updateControlPanelFormSilently();
                     }
-                    // Update sponsor frame border color ONLY without touching image or restarting timer!
                     updateSponsorFrameBorderColorOnly();
                 }
 
@@ -801,12 +835,12 @@
             }
         }
 
-        // Render Uploaded Sponsors List with Individual Logo Height Sliders (Up to 160px with Lag-Free Dragging)
+        // Render Uploaded Sponsors List with Individual Logo Height Sliders
         function renderSponsorsListUI() {
             const container = document.getElementById('sponsors-list-container');
             if (!container) return;
 
-            if (appState.sponsors.length === 0) {
+            if (!Array.isArray(appState.sponsors) || appState.sponsors.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-4 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
                         ยังไม่มีรูปสปอนเซอร์ในรายการ สามารถอัปโหลดรูปได้ที่กล่องด้านบน
@@ -835,7 +869,7 @@
                             </div>
                         </div>
 
-                        <!-- Individual Logo Height Slider (Min: 20, Max: 160, Lag-Free Dragging) -->
+                        <!-- Individual Logo Height Slider (Min: 20, Max: 160) -->
                         <div class="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 w-full sm:w-auto justify-between">
                             <span class="text-[11px] font-semibold text-slate-400 whitespace-nowrap">ความสูงโลโก้:</span>
                             <input type="range" min="20" max="160" step="1" value="${sp.height || 70}" oninput="updateSponsorHeight('${sp.id}', this.value, this)" class="w-24 accent-amber-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg" />
@@ -873,11 +907,11 @@
 
         function setActiveControlScreen(scrNum) {
             appState.activeControlScreen = scrNum;
-            appState.activePreviewScreen = scrNum; // Auto sync preview screen
+            appState.activePreviewScreen = scrNum;
             updateControlPanelFormSilently();
             updatePreviewScreenTabsUI();
             renderMapOverlayPreview();
-            updateSponsorFrameBorderColorOnly(); // ONLY update border color of sponsor frame
+            updateSponsorFrameBorderColorOnly();
             saveGameDataOnly();
         }
 
@@ -898,7 +932,7 @@
             document.getElementById('match-val-display').innerText = 'MATCH ' + screen.match;
 
             renderMapOverlayPreview();
-            updateSponsorFrameBorderColorOnly(); // Update border color ONLY, zero sponsor reset!
+            updateSponsorFrameBorderColorOnly();
             saveGameDataOnly();
         }
 
@@ -972,7 +1006,7 @@
             event.target.value = '';
         }
 
-        // Smooth Logo Height Slider Update (Lag-Free Dragging)
+        // Smooth Logo Height Slider Update
         let sponsorHeightDebounce = null;
         function updateSponsorHeight(id, newHeight, inputEl) {
             const sp = appState.sponsors.find(s => s.id === id);
@@ -980,12 +1014,10 @@
 
             sp.height = parseInt(newHeight) || 70;
 
-            // 1. Instantly update numeric label beside the slider
             if (inputEl && inputEl.nextElementSibling) {
                 inputEl.nextElementSibling.innerText = sp.height + 'px';
             }
 
-            // 2. Direct DOM style update for active sponsor preview/OBS images without re-rendering full list
             const activeIdx = appState.sponsorSettings.activeSponsorIndex || 0;
             if (appState.sponsors[activeIdx] && appState.sponsors[activeIdx].id === id) {
                 document.querySelectorAll('.sponsor-frame-img').forEach(img => {
@@ -993,7 +1025,6 @@
                 });
             }
 
-            // 3. Debounced save to Firebase to keep UI silky smooth
             if (sponsorHeightDebounce) clearTimeout(sponsorHeightDebounce);
             sponsorHeightDebounce = setTimeout(() => {
                 saveSponsorDataOnly();
@@ -1082,7 +1113,7 @@
                 updateSponsorFrameBorderColorOnly();
             } else if (event.data.type === 'SPONSOR_UPDATE') {
                 if (event.data.sponsorSettings) appState.sponsorSettings = event.data.sponsorSettings;
-                if (event.data.sponsors) appState.sponsors = event.data.sponsors;
+                if (event.data.sponsors) appState.sponsors = sanitizeSponsorsList(event.data.sponsors);
                 renderSponsorFrame();
                 if (!isObsMode) renderSponsorsListUI();
                 updateCarouselInterval();
@@ -1101,10 +1132,8 @@
             if (!obsContainer) return;
 
             if (viewMode === 'obs-sponsor') {
-                // Render Only Sponsor Overlay
                 renderSponsorFrameInContainer(obsContainer);
             } else {
-                // Render Map Overlay for target screen Param
                 const targetScreenData = appState.screens[screenParam] || appState.screens[1];
                 obsContainer.innerHTML = renderMapOverlayHTML(targetScreenData);
             }
@@ -1114,10 +1143,10 @@
         // INITIALIZATION ON PAGE LOAD
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
+            loadLocalStateCache(); // โหลดจากเครื่องก่อน เพื่อไม่ให้รูปหายหากยังเชื่อมต่อ Firebase ไม่เสร็จ
             initFirebaseSync();
 
             if (isObsMode) {
-                // OBS Only Mode
                 document.getElementById('control-panel-view').style.display = 'none';
                 document.getElementById('obs-only-view').classList.remove('hidden');
                 document.getElementById('obs-only-view').classList.add('flex');
@@ -1126,7 +1155,6 @@
                 renderObsViewIfNeeded();
                 updateCarouselInterval();
             } else {
-                // Main Control Panel Mode
                 updateControlPanelFormSilently();
                 updatePreviewScreenTabsUI();
                 renderMapOverlayPreview();
