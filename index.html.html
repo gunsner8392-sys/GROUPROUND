@@ -720,7 +720,7 @@
             });
         }
 
-        // 2. Global Sponsor Frame Helper with Real-Time Smooth Slide & Fade Motion
+        // 2. Global Sponsor Frame Helper (แก้ไขแล้ว: ป้องกันการเรนเดอร์ทับหน้า OBS Map Overlay)
         function renderSponsorFrameInContainer(container) {
             if (!container) return;
 
@@ -815,7 +815,11 @@
 
         function renderSponsorFrame() {
             renderSponsorFrameInContainer(document.getElementById('sponsor-preview-frame'));
-            renderSponsorFrameInContainer(document.getElementById('obs-render-container'));
+            
+            // เรนเดอร์ลง obs-render-container เฉพาะในโหมด OBS Sponsor เท่านั้น (แก้ปัญหาแอบกระพริบทับหน้า Map)
+            if (isObsMode && viewMode === 'obs-sponsor') {
+                renderSponsorFrameInContainer(document.getElementById('obs-render-container'));
+            }
 
             const indicator = document.getElementById('sponsor-carousel-indicator');
             if (indicator) {
