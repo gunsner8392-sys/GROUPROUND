@@ -466,8 +466,53 @@
         // Broadcast Channel for sub-millisecond local tabs sync
         const broadcastChannel = new BroadcastChannel('esports_overlay_channel');
 
-        // โหลด Cache จาก LocalStorage ก่อน Firebase Sync
-        function loadLocalStateCache() {
+        // IndexedDB Helper for persistent image storage
+        const IDB_NAME = 'esports_sponsor_db';
+        const IDB_STORE = 'sponsors_store';
+
+        function openSponsorDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(IDB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(IDB_STORE)) {
+                        db.createObjectStore(IDB_STORE);
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function saveSponsorsToIDB(sponsorData) {
+            try {
+                const db = await openSponsorDB();
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                const store = tx.objectStore(IDB_STORE);
+                store.put(sponsorData, 'current_sponsor_data');
+            } catch (e) {
+                console.warn("IndexedDB save error:", e);
+            }
+        }
+
+        async function loadSponsorsFromIDB() {
+            try {
+                const db = await openSponsorDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(IDB_STORE, 'readonly');
+                    const store = tx.objectStore(IDB_STORE);
+                    const req = store.get('current_sponsor_data');
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                console.warn("IndexedDB load error:", e);
+                return null;
+            }
+        }
+
+        // โหลด Cache จาก LocalStorage & IndexedDB ก่อน Firebase Sync
+        async function loadLocalStateCache() {
             try {
                 const cachedGame = localStorage.getItem('esports_suite_game_state');
                 if (cachedGame) {
@@ -475,11 +520,19 @@
                     if (parsed.screens) appState.screens = parsed.screens;
                     if (parsed.activeControlScreen) appState.activeControlScreen = parsed.activeControlScreen;
                 }
-                const cachedSponsor = localStorage.getItem('esports_suite_sponsor_state');
-                if (cachedSponsor) {
-                    const parsed = JSON.parse(cachedSponsor);
-                    if (parsed.sponsorSettings) appState.sponsorSettings = parsed.sponsorSettings;
-                    if (parsed.sponsors) appState.sponsors = sanitizeSponsorsList(parsed.sponsors);
+
+                // โหลดสปอนเซอร์จาก IndexedDB (เพื่อป้องกันข้อจำกัดความจุ LocalStorage)
+                const idbSponsor = await loadSponsorsFromIDB();
+                if (idbSponsor) {
+                    if (idbSponsor.sponsorSettings) appState.sponsorSettings = idbSponsor.sponsorSettings;
+                    if (idbSponsor.sponsors) appState.sponsors = sanitizeSponsorsList(idbSponsor.sponsors);
+                } else {
+                    const cachedSponsor = localStorage.getItem('esports_suite_sponsor_state');
+                    if (cachedSponsor) {
+                        const parsed = JSON.parse(cachedSponsor);
+                        if (parsed.sponsorSettings) appState.sponsorSettings = parsed.sponsorSettings;
+                        if (parsed.sponsors) appState.sponsors = sanitizeSponsorsList(parsed.sponsors);
+                    }
                 }
             } catch (e) {
                 console.error("Error loading local storage cache:", e);
@@ -513,15 +566,22 @@
 
         // Save ONLY Sponsor Data (Settings, Sponsors List)
         function saveSponsorDataOnly() {
+            const sponsorPayload = {
+                sponsorSettings: appState.sponsorSettings,
+                sponsors: appState.sponsors
+            };
+
+            // 1. บันทึกลง IndexedDB (ไม่จำกัดความจุเหมือน LocalStorage)
+            saveSponsorsToIDB(sponsorPayload);
+
+            // 2. บันทึกลง LocalStorage
             try {
-                localStorage.setItem('esports_suite_sponsor_state', JSON.stringify({
-                    sponsorSettings: appState.sponsorSettings,
-                    sponsors: appState.sponsors
-                }));
+                localStorage.setItem('esports_suite_sponsor_state', JSON.stringify(sponsorPayload));
             } catch (e) {
                 console.warn("LocalStorage sponsor save warning:", e);
             }
 
+            // 3. บันทึกลง Firebase (เฉพาะโหนด sponsor)
             try {
                 dbRef.child('sponsor').set({
                     settings: appState.sponsorSettings,
@@ -531,6 +591,7 @@
                 console.error("Firebase sponsor save error:", e);
             }
 
+            // 4. บรอดแคสต์ไปยัง แท็บอื่นในเครื่อง
             try {
                 broadcastChannel.postMessage({ type: 'SPONSOR_UPDATE', sponsorSettings: appState.sponsorSettings, sponsors: appState.sponsors });
             } catch (e) {
@@ -540,29 +601,55 @@
 
         // Initialize Firebase Listener with Smart Isolated Protection
         function initFirebaseSync() {
-            dbRef.on('value', (snapshot) => {
+            // 1. แยก Listener สำหรับ Game Screens (เด็ดขาด ไม่ยุ่งเกี่ยวกับสปอนเซอร์)
+            dbRef.child('screens').on('value', (snapshot) => {
                 const val = snapshot.val();
-                if (!val) return;
-
-                let gameDataChanged = false;
-
-                if (val.screens) {
-                    appState.screens = val.screens;
-                    gameDataChanged = true;
+                if (val) {
+                    appState.screens = val;
+                    renderMapOverlayPreview();
+                    if (!isObsMode) {
+                        updateControlPanelFormSilently();
+                    }
+                    updateSponsorFrameBorderColorOnly();
+                    renderObsViewIfNeeded();
                 }
-                if (val.activeControlScreen) {
-                    appState.activeControlScreen = val.activeControlScreen;
-                    gameDataChanged = true;
+            });
+
+            // 2. แยก Listener สำหรับ Active Control Screen
+            dbRef.child('activeControlScreen').on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    appState.activeControlScreen = val;
+                    renderMapOverlayPreview();
+                    if (!isObsMode) {
+                        updateControlPanelFormSilently();
+                    }
+                    updateSponsorFrameBorderColorOnly();
+                    renderObsViewIfNeeded();
+                }
+            });
+
+            // 3. แยก Listener สำหรับ Sponsor (แยกขาดจาก Game ชัดเจน)
+            dbRef.child('sponsor').on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (!val) {
+                    if (appState.sponsors && appState.sponsors.length > 0) {
+                        saveSponsorDataOnly();
+                    }
+                    return;
                 }
 
-                // Check Sponsor State Change with Safe Sanitization
-                let sponsorDataChanged = false;
-                const rawSponsors = val.sponsor?.list || val.sponsors;
-                const incomingSponsorSettings = val.sponsor?.settings || val.sponsorSettings || appState.sponsorSettings;
-                
+                const rawSponsors = val.list;
+                const incomingSponsorSettings = val.settings || appState.sponsorSettings;
+
                 if (rawSponsors !== undefined && rawSponsors !== null) {
                     const incomingSponsors = sanitizeSponsorsList(rawSponsors);
-                    
+
+                    if (incomingSponsors.length === 0 && appState.sponsors.length > 0 && !lastSponsorHash) {
+                        saveSponsorDataOnly();
+                        return;
+                    }
+
                     const incomingSponsorData = {
                         sponsorSettings: incomingSponsorSettings,
                         sponsors: incomingSponsors
@@ -571,31 +658,22 @@
 
                     if (newHash !== lastSponsorHash) {
                         lastSponsorHash = newHash;
-                        appState.sponsorSettings = incomingSponsorData.sponsorSettings;
+                        appState.sponsorSettings = incomingSponsorSettings;
                         appState.sponsors = incomingSponsors;
-                        sponsorDataChanged = true;
+
+                        saveSponsorsToIDB(incomingSponsorData);
+                        try {
+                            localStorage.setItem('esports_suite_sponsor_state', JSON.stringify(incomingSponsorData));
+                        } catch(e) {}
+
+                        renderSponsorFrame();
+                        if (!isObsMode) {
+                            renderSponsorsListUI();
+                        }
+                        updateCarouselInterval();
+                        renderObsViewIfNeeded();
                     }
                 }
-
-                // Render Game updates ONLY
-                if (gameDataChanged) {
-                    renderMapOverlayPreview();
-                    if (!isObsMode) {
-                        updateControlPanelFormSilently();
-                    }
-                    updateSponsorFrameBorderColorOnly();
-                }
-
-                // Render Sponsor updates ONLY if sponsor state actually changed
-                if (sponsorDataChanged) {
-                    renderSponsorFrame();
-                    if (!isObsMode) {
-                        renderSponsorsListUI();
-                    }
-                    updateCarouselInterval();
-                }
-
-                renderObsViewIfNeeded();
             });
         }
 
@@ -1176,8 +1254,8 @@
         // ==========================================
         // INITIALIZATION ON PAGE LOAD
         // ==========================================
-        window.addEventListener('DOMContentLoaded', () => {
-            loadLocalStateCache();
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadLocalStateCache();
             initFirebaseSync();
 
             if (isObsMode) {
