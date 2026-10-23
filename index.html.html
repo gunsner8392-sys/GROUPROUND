@@ -456,6 +456,8 @@
             sponsors: [] // Array of { id, name, src, height }
         };
 
+        let lastSponsorHash = "";
+
         const viewMode = urlParams.get('view'); // 'obs' or 'obs-sponsor'
         const screenParam = parseInt(urlParams.get('screen')) || 1;
         const isObsMode = urlParams.get("obs") === "1" || viewMode === 'obs' || viewMode === 'obs-sponsor';
@@ -591,9 +593,37 @@
             }
         }
 
-        // Initialize Direct Real-Time Firebase Listener
+        // Initialize Direct Real-Time Firebase Listener (แยกอิสระ 100% ไม่ยุ่งเกี่ยวข้ามกัน)
         function initFirebaseSync() {
-            dbRef.on('value', (snapshot) => {
+            // 1. แยก Listener รับเฉพาะข้อมูลเกม (แมพ/กลุ่ม/รอบ/ธีม)
+            dbRef.child('screens').on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    appState.screens = val;
+                    renderMapOverlayPreview();
+                    if (!isObsMode) updateControlPanelFormSilently();
+                    updateSponsorFrameBorderColorOnly();
+                    if (isObsMode && viewMode !== 'obs-sponsor') {
+                        renderObsViewIfNeeded();
+                    }
+                }
+            });
+
+            dbRef.child('activeControlScreen').on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val !== null && val !== undefined) {
+                    appState.activeControlScreen = val;
+                    renderMapOverlayPreview();
+                    if (!isObsMode) updateControlPanelFormSilently();
+                    updateSponsorFrameBorderColorOnly();
+                    if (isObsMode && viewMode !== 'obs-sponsor') {
+                        renderObsViewIfNeeded();
+                    }
+                }
+            });
+
+            // 2. แยก Listener รับเฉพาะข้อมูลสปอนเซอร์
+            dbRef.child('sponsor').on('value', (snapshot) => {
                 const val = snapshot.val();
                 if (!val) {
                     if (appState.sponsors && appState.sponsors.length > 0) {
@@ -602,56 +632,43 @@
                     return;
                 }
 
-                // 1. ซิงค์ข้อมูลเกมแบบ Real-Time
-                if (val.screens) {
-                    appState.screens = val.screens;
-                }
-                if (val.activeControlScreen !== undefined) {
-                    appState.activeControlScreen = val.activeControlScreen;
-                }
+                const rawSponsors = val.list;
+                const incomingSponsorSettings = val.settings || appState.sponsorSettings;
 
-                // 2. ซิงค์ข้อมูลสปอนเซอร์แบบ Real-Time
-                if (val.sponsor) {
-                    if (val.sponsor.settings) {
-                        appState.sponsorSettings = val.sponsor.settings;
+                if (rawSponsors !== undefined && rawSponsors !== null) {
+                    const incomingSponsors = sanitizeSponsorsList(rawSponsors);
+
+                    if (incomingSponsors.length === 0 && appState.sponsors.length > 0 && !lastSponsorHash) {
+                        saveSponsorDataOnly();
+                        return;
                     }
-                    if (val.sponsor.list !== undefined) {
-                        appState.sponsors = sanitizeSponsorsList(val.sponsor.list);
+
+                    const incomingSponsorData = {
+                        sponsorSettings: incomingSponsorSettings,
+                        sponsors: incomingSponsors
+                    };
+                    const newHash = JSON.stringify(incomingSponsorData);
+
+                    if (newHash !== lastSponsorHash) {
+                        lastSponsorHash = newHash;
+                        appState.sponsorSettings = incomingSponsorSettings;
+                        appState.sponsors = incomingSponsors;
+
+                        saveSponsorsToIDB(incomingSponsorData);
+                        try {
+                            localStorage.setItem('esports_suite_sponsor_state', JSON.stringify(incomingSponsorData));
+                        } catch(e) {}
+
+                        renderSponsorFrame();
+                        if (!isObsMode) {
+                            renderSponsorsListUI();
+                        }
+                        updateCarouselInterval();
+                        if (isObsMode && viewMode === 'obs-sponsor') {
+                            renderObsViewIfNeeded();
+                        }
                     }
-                } else {
-                    if (val.sponsorSettings) appState.sponsorSettings = val.sponsorSettings;
-                    if (val.sponsors) appState.sponsors = sanitizeSponsorsList(val.sponsors);
                 }
-
-                // หาก Firebase ว่างแต่มีรูปภาพในเครื่อง ให้ดันรูปขึ้น Firebase
-                if (!val.sponsor && !val.sponsors && appState.sponsors.length > 0) {
-                    saveSponsorDataOnly();
-                }
-
-                // 3. บันทึกสำรองลงเครื่อง
-                try {
-                    localStorage.setItem('esports_suite_game_state', JSON.stringify({
-                        screens: appState.screens,
-                        activeControlScreen: appState.activeControlScreen
-                    }));
-                    saveSponsorsToIDB({
-                        sponsorSettings: appState.sponsorSettings,
-                        sponsors: appState.sponsors
-                    });
-                } catch (e) {}
-
-                // 4. เรนเดอร์อัปเดตหน้าจอทันทีแบบ Real-Time
-                renderMapOverlayPreview();
-                renderSponsorFrame();
-                
-                if (!isObsMode) {
-                    updateControlPanelFormSilently();
-                    renderSponsorsListUI();
-                }
-                
-                updateSponsorFrameBorderColorOnly();
-                updateCarouselInterval();
-                renderObsViewIfNeeded();
             });
         }
 
@@ -709,7 +726,7 @@
             `;
         }
 
-        // Update Sponsor Frame Border Color ONLY without touching inner Image DOM or active index
+        // Update Sponsor Frame Border Color ONLY without touching inner Image DOM
         function updateSponsorFrameBorderColorOnly() {
             const currentScreen = appState.screens[appState.activeControlScreen] || appState.screens[1];
             const activeThemeKey = currentScreen.theme || 'orange';
@@ -720,7 +737,7 @@
             });
         }
 
-        // 2. Global Sponsor Frame Helper (แก้ไขแล้ว: ป้องกันการเรนเดอร์ทับหน้า OBS Map Overlay)
+        // 2. Global Sponsor Frame Helper
         function renderSponsorFrameInContainer(container) {
             if (!container) return;
 
@@ -816,7 +833,7 @@
         function renderSponsorFrame() {
             renderSponsorFrameInContainer(document.getElementById('sponsor-preview-frame'));
             
-            // เรนเดอร์ลง obs-render-container เฉพาะในโหมด OBS Sponsor เท่านั้น (แก้ปัญหาแอบกระพริบทับหน้า Map)
+            // เรนเดอร์ลง obs-render-container เฉพาะในโหมด OBS Sponsor เท่านั้น
             if (isObsMode && viewMode === 'obs-sponsor') {
                 renderSponsorFrameInContainer(document.getElementById('obs-render-container'));
             }
@@ -1195,7 +1212,7 @@
             }, false);
         }
 
-        // BroadcastChannel Listener
+        // BroadcastChannel Listener (แยกรับเฉพาะส่วน ป้องกันเรนเดอร์ข้ามกัน)
         broadcastChannel.onmessage = (event) => {
             if (!event.data) return;
             
@@ -1205,19 +1222,23 @@
                 renderMapOverlayPreview();
                 if (!isObsMode) updateControlPanelFormSilently();
                 updateSponsorFrameBorderColorOnly();
+                if (isObsMode && viewMode !== 'obs-sponsor') {
+                    renderObsViewIfNeeded();
+                }
             } else if (event.data.type === 'SPONSOR_UPDATE') {
                 if (event.data.sponsorSettings) appState.sponsorSettings = event.data.sponsorSettings;
                 if (event.data.sponsors) appState.sponsors = sanitizeSponsorsList(event.data.sponsors);
                 renderSponsorFrame();
                 if (!isObsMode) renderSponsorsListUI();
                 updateCarouselInterval();
+                if (isObsMode && viewMode === 'obs-sponsor') {
+                    renderObsViewIfNeeded();
+                }
             }
-
-            renderObsViewIfNeeded();
         };
 
         // ==========================================
-        // OBS VIEW MODE RENDERER
+        // OBS VIEW MODE RENDERER (มีระบบเปรียบเทียบ DOM ป้องกันการกระพริบ 100%)
         // ==========================================
         function renderObsViewIfNeeded() {
             if (!isObsMode) return;
@@ -1229,7 +1250,10 @@
                 renderSponsorFrameInContainer(obsContainer);
             } else {
                 const targetScreenData = appState.screens[screenParam] || appState.screens[1];
-                obsContainer.innerHTML = renderMapOverlayHTML(targetScreenData);
+                const newHtml = renderMapOverlayHTML(targetScreenData);
+                if (obsContainer.innerHTML.trim() !== newHtml.trim()) {
+                    obsContainer.innerHTML = newHtml;
+                }
             }
         }
 
